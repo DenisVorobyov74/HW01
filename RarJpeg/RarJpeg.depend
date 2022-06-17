@@ -1,0 +1,5 @@
+# depslib dependency file v1.0
+1655345353 source:/home/denis/GitHub/HW01/RarJpeg/main.c
+	<stdio.h>
+	<stdlib.h>
+

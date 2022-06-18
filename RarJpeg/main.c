@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #define GetArrayType_Size 4
 #define FileNameArray_Size 500
@@ -18,6 +19,7 @@ FILE* OpenFile(char* mPathToFile);
 void FindArchiveStructure(FILE* StreamPointer);
 void ShowIncludedFilesZip(FILE* StreamPointer);
 void ShowFileName(int* FileNameBuffer, int* CurFileNameInd, const int ElementsNumber, int* FileCntr);
+void KeepOpenWindow();
 enum ArrayType GetArrayType(FILE* StreamPointer);
 
 int main()
@@ -31,15 +33,19 @@ int main()
         return 0;
 
     StreamPointer = OpenFile(PathToFile);
-    if(StreamPointer == NULL)
-        printf("Error open file.");
+    if(StreamPointer == NULL){
+        printf("Error open file. Unknown file.");
+        KeepOpenWindow();
+        }
     else
         FindArchiveStructure(StreamPointer);
 
     if(StreamPointer != NULL){
         CloseResult = CloseFile(StreamPointer);
-        if(CloseResult == EOF)
+        if(CloseResult == EOF){
             printf("Error close file.");
+            KeepOpenWindow();
+        }
     }
     return 0;
 }
@@ -49,7 +55,7 @@ int GetFullPathToFile(char* mPathToFile) {
     int PathLen = 0;
 
     printf("Enter full path to the file (max len - 250ch): ");
-    scanf("%s", mPathToFile);
+    scanf("%250s", mPathToFile);
 
     while(mPathToFile[PathLen] != '\0')
     {
@@ -62,7 +68,14 @@ int GetFullPathToFile(char* mPathToFile) {
 
 FILE* OpenFile(char* mPathToFile) {
 
-    return fopen(mPathToFile, "rb");
+    struct stat buff;
+    FILE* mStreamPointer = NULL;
+
+    // Проверяем, что введенный путь указывает на обычный файл. Если это файл - попытаемся открыть.
+    if(stat(mPathToFile, &buff) == 0 && (buff.st_mode & __S_IFMT) == __S_IFREG)
+        mStreamPointer = fopen(mPathToFile, "rb");
+
+    return mStreamPointer;
 
 }
 
@@ -75,7 +88,6 @@ int CloseFile(FILE* mStreamPointer) {
 void FindArchiveStructure(FILE* StreamPointer){
 
     enum ArrayType AType;
-    char EmptyEnter[1];
 
     AType = GetArrayType(StreamPointer);
 
@@ -84,7 +96,7 @@ void FindArchiveStructure(FILE* StreamPointer){
     else{
         // Держем окно терминала открытым.
         printf("\nArchive not found.");
-        scanf("%s", EmptyEnter);
+        KeepOpenWindow();
     }
 
 }
@@ -118,8 +130,6 @@ enum ArrayType GetArrayType(FILE* StreamPointer){
 
 // Ищем и выводм в консоль файлы в zip архиве.
 void ShowIncludedFilesZip(FILE* StreamPointer){
-
-    char EmptyEnter[1];
 
     // Сигнатуры указаны в обратном порядке.
     int BeginFileMetaArray[] = {0x02, 0x01, 0x4b, 0x50};
@@ -184,7 +194,7 @@ void ShowIncludedFilesZip(FILE* StreamPointer){
     printf("\nFile output completed.");
     printf("\nTotal: ");
     printf("%d", FileCntr);
-    scanf("%s", EmptyEnter);
+    KeepOpenWindow();
 
 }
 
@@ -200,7 +210,8 @@ void ShowFileName(int* FileNameBuffer, int* CurFileNameInd, const int ElementsNu
     *CurFileNameInd = (*CurFileNameInd) - ElementsNumber;
 
     // Если последний символ - "/" или "\", то эта папка, не выводим.
-    if(!(FileNameBuffer[(*CurFileNameInd)-1] == 47 || FileNameBuffer[(*CurFileNameInd)-1] == 92)){
+    if(*CurFileNameInd > 0  &&
+       !(FileNameBuffer[(*CurFileNameInd)-1] == '/' || FileNameBuffer[(*CurFileNameInd)-1] == '\\')){
 
         FileNameBuffer[*CurFileNameInd] = '\0';
         for(i = 0; FileNameBuffer[i] != '\0'; i++){
@@ -255,11 +266,9 @@ int IsStringOccurrence(int* SampleArray, int* Buffer, int CurBufferInd, const in
 
 }
 
-//Buffer[0]
-//Buffer[1]
-//Buffer[2]
-//Buffer[3]
-//SampleArray[0]
-//locFileNameBuffer[8]
-//locFileNameBuffer[9]
-//locFileNameBuffer[10]
+// Просто держит окно терминала открытым.
+void KeepOpenWindow(){
+
+    char EmptyEnter[1];
+    scanf("%1s", EmptyEnter);
+}
